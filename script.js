@@ -1,26 +1,20 @@
 document.addEventListener("DOMContentLoaded", function() {
-    // Function to check if a string contains a substring (case-insensitive)
-    function containsSubstring(str, substr) {
-        return str.toLowerCase().includes(substr.toLowerCase());
-    }
-    
     // Function to extract the desired name from the URL
-    function extractNameFromURL(url) {
+    function extractNameFromURL(path) {
 
-        if (typeof url !== 'string') {
-            console.error('Invalid URL:', url);
+        if (typeof path !== 'string') {
+            console.error('Invalid URL or file path:', path);
             return '';
         }
 
         // Removes file path and extract filename
-        let fileName = url.split('/').pop();
+        let fileName = path.split('/').pop();
         // Removes file extension
         fileName = fileName.replace(/\.[^/.]+$/, "");
         // Removes "policy" (case-insensitive)
         fileName = fileName.replace(/policy/i, "");
         // Trims any leading/trailing spaces
         fileName = fileName.trim();
-
         // Capitalizes first letter
         fileName = fileName.charAt(0).toUpperCase() + fileName.slice(1);
 
@@ -29,43 +23,37 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // Function to dynamically update the navigation menu of index.html
     function updateNavigationMenu() {
-        const directoryPath = './pages/Policies';
-
-        // Reads the contents of the directory
-        fetch(directoryPath)
-        .then(response => response.text())
+        // Make an HTTP GET request to fetch the JSON file
+        fetch('policies.json')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error ('Failed to fetch JSON file \'policies.json\'.');
+            }
+            // if response is successful proceed parsing JSON data
+            return response.json();
+        })
         .then(data => {
-            const parser = new DOMParser();
-            const htmlDoc = parser.parseFromString(data, 'text/html');
-            const links = Array.from(htmlDoc.querySelectorAll('a[href$=".html"]'));
-
             // Extracts file names from URLs
-            let fileNames = links.map(link => link.getAttribute('href')).filter(href => containsSubstring(href, 'Policy'));
-
-            fileNames = fileNames.map(url => extractNameFromURL(url));
-
-            // Extracts relative URL
-            const urls = links.map(link => link.getAttribute('href')).filter(href => containsSubstring(href, 'Policy'));
+            let fileNames = data.map(path => extractNameFromURL(path));
 
             // Inserts policy links into the navigation menu
             const nav = document.querySelector('nav ul');
-            const productsLink = nav.lastElementChild;
+            const lastElement = nav.lastElementChild;
 
             for (let i = 0; i < fileNames.length; i++) {
-                const name = fileNames[i];
-                const url = urls[i];
+                const policyName = fileNames[i];
+                const relativePath = data[i];
 
                 // Create list item with corresponding name and URL
                 const listItem = document.createElement('li');
-                listItem.innerHTML = `<a href="${url}">${name}</a>`;
-                nav.insertBefore(listItem, productsLink);
+                listItem.innerHTML = `<a href="${relativePath}">${policyName}</a>`;
+                lastElement.insertAdjacentElement('afterend', listItem);
             }
         })
         .catch(error => {
-            console.error('Error reading directory:', error);
+            console.error('Error fetching \'policies.json\':', error);
         });
     }
-
 
 // Call the function to update the navigation menu
 updateNavigationMenu();
